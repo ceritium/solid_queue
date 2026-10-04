@@ -72,6 +72,8 @@ module SolidQueue
         # rather than right away. Decided before the job's own insert opens a
         # transaction, so that one doesn't count as the caller's.
         def defer_concurrency_lock_for?(active_job)
+          return false unless active_job.class.concurrency_key
+
           case active_job.concurrency_lock_acquisition
           when :on_dispatch then true
           when :outside_transaction then inside_transaction?

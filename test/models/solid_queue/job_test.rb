@@ -457,6 +457,16 @@ class SolidQueue::JobTest < ActiveSupport::TestCase
     end
   end
 
+  test "jobs without concurrency controls don't check for an open transaction" do
+    SolidQueue::Job.expects(:inside_transaction?).never
+
+    with_concurrency_lock_acquisition(:outside_transaction) do
+      assert_ready do
+        AddToBufferJob.perform_later(1)
+      end
+    end
+  end
+
   test "a job acquiring its concurrency lock outside transactions defers it only inside one on Solid Queue's connection" do
     assert_ready do
       LockOutsideTransactionJob.perform_later(@result, name: "A")

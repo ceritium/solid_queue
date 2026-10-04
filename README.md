@@ -646,6 +646,8 @@ DeliverAnnouncementToContactJob.set(acquire: :on_enqueue).perform_later(contact)
 
 A job that leaves the lock to the dispatcher waits for the dispatcher's next poll before it can be ready, up to its `polling_interval`, and goes through the scheduled jobs path, one by one, as described in [scheduled jobs](#scheduled-jobs). With `on_conflict: :discard`, a conflicting job is discarded when it's dispatched rather than when it's enqueued, so the enqueue itself succeeds, as it does for jobs scheduled in the future.
 
+Bear in mind that these jobs depend on the dispatcher to run at all, like jobs scheduled in the future do: without a dispatcher running, they stay scheduled. Also, the dispatcher acquires the locks of all the jobs in a batch within a single transaction, so if you run several dispatchers, two of them dispatching jobs for the same concurrency keys in a different order can deadlock. The jobs in the batch that fails remain scheduled and are dispatched once the supervisor replaces that dispatcher, but if most of your jobs take this path, running a single dispatcher avoids it.
+
 ### Performance considerations
 
 Concurrency controls introduce significant overhead (blocked executions need to be created and promoted to ready, semaphores need to be created and updated) so you should consider carefully whether you need them. For throttling purposes, where you plan to have `limit` significantly larger than 1, we encourage relying on a limited number of workers per queue instead. For example:
