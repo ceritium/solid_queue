@@ -155,3 +155,4 @@ class ActiveSupport::TestCase
       end
     end
 end
+require_relative "hang_watchdog"

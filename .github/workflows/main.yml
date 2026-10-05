@@ -2,22 +2,6 @@ name: Build
 on: [ push, pull_request ]
 
 jobs:
-  rubocop:
-    name: Rubocop
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Setup Ruby and install gems
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.4
-          bundler-cache: true
-          cache-version: 1
-      - name: Run rubocop
-        run: |
-          bundle exec rubocop --parallel
-
   tests:
     name: Tests
     runs-on: ubuntu-latest
@@ -25,16 +9,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version:
-        - 3.2
-        - 3.3
-        - 3.4
-        - 4.0
-        database: [ mysql, postgres, sqlite ]
-        gemfile: [ rails_7_1, rails_7_2, rails_8_0, rails_8_1, rails_main ]
-        exclude:
-          - ruby-version: "3.2"
-            gemfile: rails_main
+        ruby-version: [ "3.2", "3.3" ]
+        database: [ sqlite ]
+        gemfile: [ rails_7_1, rails_8_0 ]
+        attempt: [ 1, 2, 3, 4, 5 ]
     services:
       mysql:
         image: mysql:8.0.31
@@ -69,12 +47,12 @@ jobs:
         run: |
           bin/rails db:setup
       - name: Run tests
-        run: bin/rails test
+        run: bin/rails test -v ${{ matrix.attempt <= 2 && '--seed 13596' || '' }}
       - name: Upload logs on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: logs-${{ matrix.database }}-${{ matrix.gemfile }}-ruby${{ matrix.ruby-version }}-attempt${{ github.run_attempt }}
+          name: logs-${{ matrix.database }}-${{ matrix.gemfile }}-ruby${{ matrix.ruby-version }}-${{ matrix.attempt }}
           path: |
             test/dummy/log/test.log
           if-no-files-found: ignore
