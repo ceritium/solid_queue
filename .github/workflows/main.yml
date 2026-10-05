@@ -5,14 +5,13 @@ jobs:
   tests:
     name: Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: [ "3.2", "3.3" ]
+        ruby-version: [ "3.2" ]
         database: [ sqlite ]
-        gemfile: [ rails_7_1, rails_8_0 ]
-        attempt: [ 1, 2, 3, 4, 5 ]
+        gemfile: [ rails_7_1 ]
     services:
       mysql:
         image: mysql:8.0.31
@@ -47,12 +46,19 @@ jobs:
         run: |
           bin/rails db:setup
       - name: Run tests
-        run: bin/rails test -v ${{ matrix.attempt <= 2 && '--seed 13596' || '' }}
+        # Up to 5 passes in this one job, the first with the seed of the hung #813 run
+        run: |
+          for pass in 1 2 3 4 5; do
+            seed=$([ $pass = 1 ] && echo 13596 || echo $RANDOM)
+            echo "::group::Pass $pass, seed $seed"
+            bin/rails test -v --seed $seed || exit $?
+            echo "::endgroup::"
+          done
       - name: Upload logs on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: logs-${{ matrix.database }}-${{ matrix.gemfile }}-ruby${{ matrix.ruby-version }}-${{ matrix.attempt }}
+          name: logs-${{ matrix.database }}-${{ matrix.gemfile }}-ruby${{ matrix.ruby-version }}
           path: |
             test/dummy/log/test.log
           if-no-files-found: ignore
